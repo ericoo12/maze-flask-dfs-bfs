@@ -1,0 +1,95 @@
+body {
+    /*font-family: Arial, sans-serif;*/
+    font-family: Calibri;
+    text-align: center;
+}
+
+h1 {
+    width: 180px;
+    margin: 0 auto;
+    margin-bottom: 20px;
+    padding: 10px;
+    border-radius: 30px;
+    color: #870047;
+    font-size: 26px;
+    background-color: #D585FF;
+        box-shadow: 0px 5px 5px #cccccc;
+        border: 1px solid #870047;
+;
+}
+section.content{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    section.maze-show{
+        width:100%;
+    }
+    section.description{
+        background-color: #d585ff;
+        border-radius: 30px;
+        padding: 15px;
+        width: 20%;
+        position: absolute;
+        left: 10%;
+        box-shadow: 0px 5px 5px #cccccc;
+        border: 1px solid #870047;
+        div{
+            h2{
+            color: #870047;
+            }
+            h4{
+                color: #870047;
+            }
+        }
+    }
+}
+#maze-container {
+    display: grid;
+    grid-template-columns: repeat(5, 50px);
+    grid-gap: 2px;
+    justify-content: center;
+    margin: 20px auto;
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+.wall {
+    background-color: #3DDFA6;
+}
+
+.start {
+    background-color: deeppink;
+}
+
+.end {
+    background-color: red;
+}
+
+.path {
+    background-color: yellow;
+}
+button {
+    margin: 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 10px;
+    box-shadow: 2px 2px 2px #ccc;
+    border: 1px solid #3A7734;
+}
+button#button-solve{
+    background-color: #3ddfa6;
+}
+
+button#button-reset{
+    background-color: #ea3535;
+}
+button:hover {
+    background-color: #ddd;
+}
