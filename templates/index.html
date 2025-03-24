@@ -5,9 +5,157 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maze Solver</title>
     <link rel="stylesheet" href="/static/styles.css">
+
+</head>
+<body>
+    <h1>Maze Solver</h1>
+    <section class="content">
+        <section class="maze-show">
+            <label for="maze-selector">Select Maze:</label>
+            <select id="maze-selector" onchange="selectMaze()">
+                {% for maze_name in mazes %}
+                <option value="{{ maze_name }}">{{ maze_name }}</option>
+                {% endfor %}
+            </select>
+
+            <div id="maze-container" class="maze"></div>
+
+            <div class="speed-control">
+                <label>Animation Speed:
+                    <input type="range" id="speed-control" min="1" max="10" value="5">
+                </label>
+            </div>
+
+            <div>
+                <label>
+                    <input type="radio" name="algorithm" value="dfs" checked> DFS
+                </label>
+                <label>
+                    <input type="radio" name="algorithm" value="bfs"> BFS
+                </label>
+                <br><br>
+                <button id="button-solve" onclick="solveMaze()">Solve Maze</button>
+                <button id="button-reset" onclick="resetMaze()">Reset Maze</button>
+            </div>
+        </section>
+    </section>
+
     <script>
         let currentMaze = [];
-        function renderMaze(solution = []) {
+        let exploredTiles = [];
+        let solutionPath = [];
+        let animationSpeed = 50;
+        let isAnimating = false;
+
+        // Initialize speed control
+        document.getElementById('speed-control').addEventListener('input', function() {
+            animationSpeed = 150 - this.value * 10;
+        });
+
+        async function selectMaze() {
+            if (isAnimating) return;
+
+            const selectedMaze = document.getElementById('maze-selector').value;
+            exploredTiles = [];
+            solutionPath = [];
+
+            try {
+                const response = await fetch('/get-maze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ maze: selectedMaze })
+                });
+
+                const result = await response.json();
+                console.log("Maze loaded:", result); // Debug log
+
+                if (result.maze) {
+                    currentMaze = result.maze;
+                    renderMaze();
+                } else {
+                    alert(result.error || 'Error loading maze.');
+                }
+            } catch (error) {
+                console.error("Error loading maze:", error);
+                alert("Failed to load maze. Check console for details.");
+            }
+        }
+
+        async function solveMaze() {
+            if (isAnimating || !currentMaze.length) return;
+
+            const algorithm = document.querySelector('input[name="algorithm"]:checked').value;
+            exploredTiles = [];
+            solutionPath = [];
+            renderMaze();
+
+            console.log("Solving with:", algorithm); // Debug log
+
+            try {
+                const response = await fetch('/solve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        maze: currentMaze,
+                        algorithm: algorithm
+                    })
+                });
+
+                const result = await response.json();
+                console.log("Solution response:", result); // Debug log
+
+                if (result.error) {
+                    alert(result.error);
+                    return;
+                }
+
+                if (result.explored_tiles) {
+                    isAnimating = true;
+                    document.getElementById('button-solve').disabled = true;
+                    document.getElementById('button-reset').disabled = true;
+
+                    animateExploration(result.explored_tiles, result.path || []);
+                } else if (result.solution) {
+                    solutionPath = result.solution;
+                    renderMaze(true);
+                } else {
+                    alert(result.message || 'No solution found.');
+                }
+            } catch (error) {
+                console.error("Error solving maze:", error);
+                alert("Failed to solve maze. Check console for details.");
+            }
+        }
+
+        function animateExploration(tiles, path) {
+            exploredTiles = [];
+            solutionPath = path;
+            let i = 0;
+
+            const interval = setInterval(() => {
+                if (i < tiles.length) {
+                    exploredTiles.push(tiles[i]);
+                    renderMaze(false);
+                    i++;
+                } else {
+                    clearInterval(interval);
+                    if (solutionPath.length > 0) {
+                        setTimeout(() => {
+                            renderMaze(true);
+                            isAnimating = false;
+                            document.getElementById('button-solve').disabled = false;
+                            document.getElementById('button-reset').disabled = false;
+                        }, 300);
+                    } else {
+                        isAnimating = false;
+                        document.getElementById('button-solve').disabled = false;
+                        document.getElementById('button-reset').disabled = false;
+                    }
+                }
+            }, animationSpeed);
+        }
+
+        function renderMaze(showSolution = false) {
             const mazeContainer = document.getElementById('maze-container');
             mazeContainer.innerHTML = '';
 
@@ -15,103 +163,37 @@
                 for (let j = 0; j < currentMaze[i].length; j++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
+
                     if (currentMaze[i][j] === 1) {
                         cell.classList.add('wall');
                     }
-                    if ([i, j].toString() === [0, 0].toString()) {
+                    if (i === 0 && j === 0) {
                         cell.classList.add('start');
                     }
-                    if ([i, j].toString() === [currentMaze.length - 1, currentMaze[0].length - 1].toString()) {
+                    if (i === currentMaze.length - 1 && j === currentMaze[0].length - 1) {
                         cell.classList.add('end');
                     }
-                    if (solution.some(([x, y]) => x === i && y === j)) {
+
+                    if (showSolution && solutionPath.some(([x, y]) => x === i && y === j)) {
                         cell.classList.add('path');
+                    } else if (exploredTiles.some(([x, y]) => x === i && y === j)) {
+                        cell.classList.add('explored');
                     }
+
                     mazeContainer.appendChild(cell);
                 }
             }
         }
 
-        async function selectMaze() {
-            const selectedMaze = document.getElementById('maze-selector').value;
-
-            const response = await fetch('/get-maze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ maze: selectedMaze })
-            });
-
-            const result = await response.json();
-            if (result.maze) {
-                currentMaze = result.maze;
-                renderMaze();
-            } else {
-                alert(result.error || 'Error loading maze.');
-            }
-        }
-
-        async function solveMaze() {
-            const algorithm = document.querySelector('input[name="algorithm"]:checked').value;
-
-            const response = await fetch('/solve', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ maze: currentMaze, algorithm }),
-            });
-
-            const result = await response.json();
-            if (result.solution) {
-                renderMaze(result.solution);
-                console.log(result.solution);
-            } else {
-                alert(result.message || 'Error solving the maze.');
-            }
-        }
-
         function resetMaze() {
+            if (isAnimating) return;
+            exploredTiles = [];
+            solutionPath = [];
             renderMaze();
         }
 
-        window.onload = () => {
-            selectMaze();
-        };
+        // Initialize on load
+        window.onload = selectMaze;
     </script>
-</head>
-<body>
-<section class="content">
-<section class="description">
-    <div>
-        <h2>Hey!</h2>
-        <p>This is a maze solver using both DFS and BFS search algorithms to reach the answer, it's up to you!</p>
-        <p>Pink square is where we start, and red square is the finish cell. Feel free to change the maze and see the different results. Happy coding!</p>
-        <h4>Sincerely, Ala</h4>
-    </div>
-</section>
-    <section class="maze-show">
-        <h1>Maze Solver</h1>
-    <label for="maze-selector">Select Maze:</label>
-    <select id="maze-selector" onchange="selectMaze()">
-        {% for maze_name in mazes %}
-        <option value="{{ maze_name }}">{{ maze_name }}</option>
-        {% endfor %}
-    </select>
-
-    <div id="maze-container" class="maze"></div>
-
-    <div>
-        <label>
-            <input type="radio" name="algorithm" value="dfs" checked> Depth-First Search
-        </label>
-        <label>
-            <input type="radio" name="algorithm" value="bfs"> Breadth-First Search
-        </label>
-        <br><br>
-        <button id="button-solve" onclick="solveMaze()">Solve Maze</button>
-        <button id="button-reset" onclick="resetMaze()">Reset Maze</button>
-    </div>
-    </section>
-</section>
 </body>
 </html>

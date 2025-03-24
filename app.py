@@ -5,11 +5,11 @@ app = Flask(__name__)
 
 mazes = {
     "maze1": [
-        [0, 1, 0, 0, 0],
+        [0, 1, 0, 1, 0],
         [0, 1, 0, 1, 0],
         [0, 0, 0, 0, 0],
         [0, 1, 0, 1, 0],
-        [0, 0, 0, 0, 0]
+        [0, 1, 0, 0, 0],
     ],
     "maze2": [
         [0, 1, 1, 0, 0],
@@ -57,28 +57,41 @@ def get_maze():
 
 @app.route('/solve', methods=['POST'])
 def solve():
-    data = request.json
-    maze = data.get('maze')
-    algorithm = data.get('algorithm')
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
 
-    if not maze or not algorithm:
-        return jsonify({'error': 'Maze or algorithm not provided'}), 400
+        maze = data.get('maze')
+        algorithm = data.get('algorithm')
 
-    start = (0, 0)
-    end = (len(maze) - 1, len(maze[0]) - 1)
+        if not maze or not algorithm:
+            return jsonify({'error': 'Maze or algorithm not provided'}), 400
 
-    if algorithm == 'dfs':
-        solution = solve_with_dfs(maze, start, end)
-    elif algorithm == 'bfs':
-        solution = solve_with_bfs(maze, start, end)
-    else:
-        return jsonify({'error': 'Invalid algorithm selected'}), 400
+        start = (0, 0)
+        end = (len(maze) - 1, len(maze[0]) - 1)
 
-    if solution is None:
-        return jsonify({'message': 'No solution found'})
+        if algorithm == 'dfs':
+            path, explored_tiles = solve_with_dfs(maze, start, end)
+        elif algorithm == 'bfs':
+            path, explored_tiles = solve_with_bfs(maze, start, end)
+        else:
+            return jsonify({'error': 'Invalid algorithm selected'}), 400
 
-    return jsonify({'solution': solution})
+        if not path:
+            return jsonify({
+                'message': 'No solution found',
+                'explored_tiles': explored_tiles
+            })
 
+        return jsonify({
+            'path': path,
+            'explored_tiles': explored_tiles
+        })
+
+    except Exception as e:
+        print(f"Error in solve endpoint: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
