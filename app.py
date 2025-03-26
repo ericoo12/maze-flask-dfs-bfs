@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
-from solver import solve_with_dfs, solve_with_bfs
+from solver import solve_with_dfs, solve_with_bfs , solve_with_ucs
+import random
 
 app = Flask(__name__)
 
@@ -55,6 +56,25 @@ def get_maze():
 
     return jsonify({'maze': mazes[selected_maze]})
 
+@app.route('/generate-maze', methods=['POST'])
+def generate_maze():
+    data = request.get_json()
+    rows = data.get("rows", 5)
+    cols = data.get("cols", 5)
+    density = data.get("density", 0.3)  # percentage of walls (0.0–0.9)
+
+    maze = []
+    for i in range(rows):
+        row = []
+        for j in range(cols):
+            if (i == 0 and j == 0) or (i == rows - 1 and j == cols - 1):
+                row.append(0)  # start and end should always be open
+            else:
+                row.append(1 if random.random() < density else 0)
+        maze.append(row)
+
+    return jsonify({'maze': maze})
+
 @app.route('/solve', methods=['POST'])
 def solve():
     try:
@@ -73,21 +93,34 @@ def solve():
 
         if algorithm == 'dfs':
             path, explored_tiles = solve_with_dfs(maze, start, end)
-        elif algorithm == 'bfs':
-            path, explored_tiles = solve_with_bfs(maze, start, end)
-        else:
-            return jsonify({'error': 'Invalid algorithm selected'}), 400
-
-        if not path:
             return jsonify({
-                'message': 'No solution found',
+                'path': path,
                 'explored_tiles': explored_tiles
             })
 
-        return jsonify({
-            'path': path,
-            'explored_tiles': explored_tiles
-        })
+        elif algorithm == 'bfs':
+            path, explored_tiles = solve_with_bfs(maze, start, end)
+            return jsonify({
+                'path': path,
+                'explored_tiles': explored_tiles
+            })
+
+        elif algorithm == 'ucs':
+            path, explored_tiles, cost_map = solve_with_ucs(maze, start, end)
+            cost_map_str_keys = {f"{x},{y}": cost for (x, y), cost in cost_map.items()}
+            return jsonify({
+                'path': path,
+                'explored_tiles': explored_tiles,
+                'cost_map': cost_map_str_keys
+            })
+
+        else:
+            return jsonify({'error': 'Invalid algorithm selected'}), 400
+
+    except Exception as e:
+        print(f"Error in solve endpoint: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 
     except Exception as e:
         print(f"Error in solve endpoint: {str(e)}")

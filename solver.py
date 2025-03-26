@@ -1,4 +1,50 @@
 # solver.py (original)
+
+import heapq
+
+def solve_with_ucs(maze, start, end):
+    import heapq
+    rows, cols = len(maze), len(maze[0])
+    visited = set()
+    parent_map = {}
+    explored_tiles = []
+    cost_so_far = {start: 0}
+
+    queue = [(0, start)]
+
+    while queue:
+        cost, current = heapq.heappop(queue)
+        x, y = current
+
+        if current in visited:
+            continue
+
+        visited.add(current)
+        explored_tiles.append(current)
+
+        if current == end:
+            path = []
+            while current != start:
+                path.append(current)
+                current = parent_map[current]
+            path.append(start)
+            return path[::-1], explored_tiles, cost_so_far  # ← added cost map
+
+        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+            nx, ny = x + dx, y + dy
+            next_node = (nx, ny)
+
+            if 0 <= nx < rows and 0 <= ny < cols and maze[nx][ny] == 0:
+                new_cost = cost_so_far[current] + 1
+                if next_node not in cost_so_far or new_cost < cost_so_far[next_node]:
+                    cost_so_far[next_node] = new_cost
+                    heapq.heappush(queue, (new_cost, next_node))
+                    parent_map[next_node] = current
+
+    return None, explored_tiles, cost_so_far
+
+
+
 def solve_with_dfs(maze, start, end):
     rows, cols = len(maze), len(maze[0])
     stack = [start]

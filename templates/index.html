@@ -33,9 +33,14 @@
                 <label>
                     <input type="radio" name="algorithm" value="bfs"> BFS
                 </label>
+                <label>
+                    <input type="radio" name="algorithm" value="ucs" > UCS
+                </label>
+
                 <br><br>
                 <button id="button-solve" onclick="solveMaze()">Solve Maze</button>
                 <button id="button-reset" onclick="resetMaze()">Reset Maze</button>
+                <button onclick="generateRandomMaze()">Generate Random Maze</button>
             </div>
         </section>
     </section>
@@ -44,12 +49,14 @@
         let currentMaze = [];
         let exploredTiles = [];
         let solutionPath = [];
-        let animationSpeed = 50;
+        let animationSpeed = 0.01;
         let isAnimating = false;
+        let costMap = {};
+
 
         // Initialize speed control
         document.getElementById('speed-control').addEventListener('input', function() {
-            animationSpeed = 150 - this.value * 10;
+            animationSpeed = 900 - this.value * 10;
         });
 
         async function selectMaze() {
@@ -102,6 +109,8 @@
                 });
 
                 const result = await response.json();
+                costMap = result.cost_map || {};  // Save cost map from backend
+
                 console.log("Solution response:", result); // Debug log
 
                 if (result.error) {
@@ -179,7 +188,12 @@
                     } else if (exploredTiles.some(([x, y]) => x === i && y === j)) {
                         cell.classList.add('explored');
                     }
-
+                    if (costMap && costMap[`${i},${j}`] !== undefined) {
+                    const label = document.createElement('div');
+                    label.className = 'cost-label';
+                    label.innerText = costMap[`${i},${j}`];
+                    cell.appendChild(label);
+                    }
                     mazeContainer.appendChild(cell);
                 }
             }
@@ -191,6 +205,33 @@
             solutionPath = [];
             renderMaze();
         }
+
+        async function generateRandomMaze() {
+    if (isAnimating) return;
+
+    exploredTiles = [];
+    solutionPath = [];
+    costMap = {};
+
+    try {
+        const response = await fetch('/generate-maze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                rows: 5,
+                cols: 5,
+                density: 0.3  // You can tweak this to make it more or less difficult
+            })
+        });
+
+        const result = await response.json();
+        currentMaze = result.maze;
+        renderMaze();
+    } catch (error) {
+        console.error("Error generating maze:", error);
+        alert("Failed to generate maze.");
+    }
+}
 
         // Initialize on load
         window.onload = selectMaze;
